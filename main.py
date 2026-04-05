@@ -6,6 +6,8 @@ import markdown
 import lmstudio as lms
 from bs4 import BeautifulSoup
 import unicodedata
+from datetime import date
+from datetime import datetime
 model = lms.llm("mlabonne/gemma-3-27b-it-abliterated-GGUF")
 def md_to_html(md_text, extensions=None):
     if extensions is None:
@@ -14,10 +16,18 @@ def md_to_html(md_text, extensions=None):
     return markdown.markdown(
         md_text,
         extensions=extensions,
-        output_format='html5'
+        output_format='html'
     )
 
-
+def html_to_md(html5, extensions=None):
+    if extensions is None:
+        extensions = ['extra']
+    
+    return markdown.markdown(
+        html5,
+        extensions=extensions,
+        output_format='html'
+    )
 
 
 from renamed import *
@@ -33,29 +43,30 @@ try:
 
         # Работа с базой данных (например, создание курсора и выполнение запроса)
         cursor = cnx.cursor()
-        query = "SELECT *  FROM `wp_posts` WHERE `ID` = 365 AND `post_title` LIKE '%Ремонт%';"  # Простой запрос для проверки подключения
+        query = "SELECT *  FROM `wp_posts` WHERE `post_date` < '2025-04-16' AND `post_title` LIKE '%Ремонт%' and `post_status` LIKE 'publish' ;"  # Простой запрос для проверки подключения
         cursor.execute(query)
         for row in cursor:
-            #cleantext = unicodedata.normalize("NFC", row[4])
-            #s2 = re.sub(r"<.*?>", "", row[4])# Выводит каждую строку в виде кортежа
-            #s2=re.sub(r"^\xb2", "", row[4])
-            #print(re.sub(r"^\xb2", "", row[4]))
-            result = model.respond("улучши текст. не надо выводить список улучшений"+row[4])
-            html_text = md_to_html(result)
-            print(html_text)
-            
-            print(result)
-            # Или можно получить значения по индексу или имени столбца:
-            # print(row[0], row[1]) # Если у вас два столбца
+            md_text=html_to_md(row[4])
+            result = model.respond("улучши текст. не надо выводить список улучшений"+md_text)
+            result=html_to_md(result.content)
+            #print(result)
+            print(row[2], row[3], row[14],row[15], ) # Если у вас два столбца
+            from datetime import datetime as dt
+            #post_date=dt.strptime(row[2], '%Y-%m-%d %H:%M:%S')
+            today_date = datetime.now()
+            #formatted_date = today_date.strftime("%Y-%m-%d %H:%M:%S")
+            #if (row[2]<today_date):
+            #    print(today_date.strftime("%Y-%m-%d %H:%M:%S"))
+             
             # print(row['имя_столбца']) # Если вы использовали namedtuple
             # Пример использования
-            
-            #sql = f"UPDATE `sistemnik`.`wp_posts` SET `post_name` ='{transliterate(row[5])}' WHERE `wp_posts`.`ID` = '{row[0]}'"
-            #print(sql)
-            #val = (transliterate(row[5]),row[0])
-            #cursor.execute(sql, val)
-            #cursor.commit()
-
+            post_date=today_date.strftime("%Y-%m-%d %H:%M:%S")
+             
+            sql = f"UPDATE `sistemnik`.`wp_posts` SET `post_date` ='{post_date}' , `post_date_gmt`= '{post_date}', `post_modified`= '{post_date}', `post_modified_gmt`= '{post_date}' ,`post_content`='{row[4]}' WHERE `wp_posts`.`ID` = '{row[0]}'"
+            print(sql)
+            cursor.execute(sql)
+            cnx.commit()
+        
 except mysql.connector.Error as err:
     if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
         print("Ошибка: Неверное имя пользователя или пароль")
