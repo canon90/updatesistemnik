@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 import unicodedata
 from datetime import date
 from datetime import datetime
+from datetime import datetime as dt
 model = lms.llm("mlabonne/gemma-3-27b-it-abliterated-GGUF")
 def md_to_html(md_text, extensions=None):
     if extensions is None:
@@ -42,16 +43,17 @@ try:
         print('Подключение к базе данных успешно установлено!')
 
         # Работа с базой данных (например, создание курсора и выполнение запроса)
-        cursor = cnx.cursor()
-        query = "SELECT *  FROM `wp_posts` WHERE `post_date` < '2025-04-16' AND `post_title` LIKE '%Ремонт%' and `post_status` LIKE 'publish' ;"  # Простой запрос для проверки подключения
+        cursor = cnx.cursor(buffered=True)
+        query = "SELECT *  FROM `wp_posts` WHERE  `post_title` LIKE 'Ремонт%' and `post_status` LIKE 'publish' and `post_type` LIKE 'product'  ;"  # Простой запрос для проверки подключения
         cursor.execute(query)
-        for row in cursor:
+        rows = cursor.fetchall()
+        for row in rows:
             md_text=html_to_md(row[4])
-            result = model.respond("улучши текст. не надо выводить список улучшений"+md_text)
+            result = model.respond("улучши текст. не надо выводить список улучшений. не надо выводить Вот улучшенный текст:"+md_text)
             result=html_to_md(result.content)
             #print(result)
             print(row[2], row[3], row[14],row[15], ) # Если у вас два столбца
-            from datetime import datetime as dt
+            
             #post_date=dt.strptime(row[2], '%Y-%m-%d %H:%M:%S')
             today_date = datetime.now()
             #formatted_date = today_date.strftime("%Y-%m-%d %H:%M:%S")
@@ -60,13 +62,13 @@ try:
              
             # print(row['имя_столбца']) # Если вы использовали namedtuple
             # Пример использования
-            post_date=today_date.strftime("%Y-%m-%d %H:%M:%S")
-             
-            sql = f"UPDATE `sistemnik`.`wp_posts` SET `post_date` ='{post_date}' , `post_date_gmt`= '{post_date}', `post_modified`= '{post_date}', `post_modified_gmt`= '{post_date}' ,`post_content`='{row[4]}' WHERE `wp_posts`.`ID` = '{row[0]}'"
+            post_date=today_date.strftime("%Y-%m-%d %H:%M:%S") 
+            sql = f"UPDATE `sistemnik`.`wp_posts` SET `post_date` ='{post_date}' , `post_date_gmt`= '{post_date}', `post_modified`= '{post_date}', `post_modified_gmt`= '{post_date}',`post_content`='{result}' WHERE `wp_posts`.`ID` = '{row[0]}'"
             print(sql)
             cursor.execute(sql)
             cnx.commit()
-        
+        cnx.close()
+        cursor.close()
 except mysql.connector.Error as err:
     if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
         print("Ошибка: Неверное имя пользователя или пароль")
